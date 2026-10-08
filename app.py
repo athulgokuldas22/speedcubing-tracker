@@ -3,11 +3,12 @@ from flask import Flask
 import config
 import db
 import solves
+import stats
 
 
 def create_app():
     app = Flask(__name__)
-    db.init_db(schemas=[solves.SCHEMA])
+    db.init_db(schemas=[solves.SCHEMA, stats.SCHEMA])
 
     @app.get("/health")
     def health():
