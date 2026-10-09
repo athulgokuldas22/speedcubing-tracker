@@ -7,3 +7,4 @@
 | 2026-10-06 | Claude | Asked for config.py, db.py and app.py | Accepted | | |
 | 2026-10-07 | Claude | Asked for the solves schema, repository, service and tests | Accepted | | |
 | 2026-10-08 | Claude | Asked for the stats schema, the DB diagram and drafts of ADR-2 and ADR-3 | Modified | | |
+| 2026-10-09 | Claude | Asked for the stats domain: averages, records, repository, service and tests | Accepted | | |
