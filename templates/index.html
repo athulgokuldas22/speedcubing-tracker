@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Speedcubing Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Speedcubing Tracker</h1>
+      <div class="session-bar">
+        <select id="session-select" aria-label="Session"></select>
+        <button id="new-session" type="button">New session</button>
+      </div>
+    </header>
+
+    <p id="scramble" class="scramble">Loading scramble...</p>
+    <div id="timer" class="timer">0.00</div>
+    <p class="hint">Press space to start, press space again to stop.</p>
+    <p id="message" class="message" role="status"></p>
+
+    <section>
+      <h2>Stats</h2>
+      <table id="stats-table">
+        <thead><tr><th></th><th>Current</th><th>Best</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Solves</h2>
+      <table id="solves-table"><tbody></tbody></table>
+    </section>
+  </main>
+  <script src="/static/timer.js"></script>
+</body>
+</html>

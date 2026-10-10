@@ -74,3 +74,9 @@ def test_stats_reports_new_pbs_only_once(client):
 
 def test_stats_unknown_session_is_404(client):
     assert client.get("/api/sessions/999/stats").status_code == 404
+
+
+def test_index_page_is_served(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b'id="timer"' in response.data

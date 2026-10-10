@@ -1,0 +1,18 @@
+body { font-family: system-ui, sans-serif; margin: 0; background: #fafafa; color: #1a1a1a; }
+main { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+h1 { font-size: 1.25rem; margin: 0; }
+h2 { font-size: 1rem; margin: 2rem 0 .5rem; }
+.scramble { font-family: ui-monospace, monospace; font-size: 1.2rem; text-align: center; margin-top: 2rem; }
+.timer { font-size: 5rem; font-variant-numeric: tabular-nums; text-align: center; margin: 1rem 0 0; }
+.timer.running { color: #0a7d33; }
+.hint { text-align: center; color: #666; margin: 0; }
+.message { text-align: center; min-height: 1.5rem; color: #b45309; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid #ddd; font-variant-numeric: tabular-nums; }
+button { margin-right: .25rem; cursor: pointer; }
+@media (prefers-color-scheme: dark) {
+  body { background: #151515; color: #eee; }
+  th, td { border-color: #333; }
+  .hint { color: #999; }
+}
