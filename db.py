@@ -1,6 +1,8 @@
 import os
 import sqlite3
 
+from flask import g
+
 import config
 
 
@@ -26,4 +28,18 @@ def init_db(schemas=(), db_path=None):
             conn.executescript(schema)
         conn.commit()
     finally:
+        conn.close()
+
+
+def get_db():
+    """One connection per request, stored on flask.g."""
+    if "db" not in g:
+        g.db = get_connection()
+    return g.db
+
+
+def close_db(exc=None):
+    """Registered as a teardown hook so the connection is always closed."""
+    conn = g.pop("db", None)
+    if conn is not None:
         conn.close()

@@ -75,3 +75,7 @@ def get_times(conn, session_id):
     Returns effective times in ms, oldest first. A DNF is None.
     """
     return [s["effective_time_ms"] for s in list_solves(conn, session_id)]
+
+
+def list_sessions(conn):
+    return repository.list_sessions(conn)
