@@ -23,3 +23,11 @@ Context: Stats needs to know which session its personal bests belong to, but the
 Decision: `solves` owns `sessions` and `solves` (with a real foreign key and `ON DELETE CASCADE`), and `stats` owns `personal_bests`, which stores `session_id` as a plain integer with no foreign key. Times are stored as integer milliseconds, with the penalty in its own column.
 Alternatives considered: A foreign key from `personal_bests.session_id` to `sessions(id)`, rejected because it makes Stats' schema depend on tables owned by Solves. Precomputing and storing an average for every solve, rejected because it goes stale when a penalty changes.
 Consequences: Without a foreign key, the database won't stop an orphaned personal best, so the application code has to clean up. Integer milliseconds avoid float rounding errors, and keeping the penalty separate means changing it never loses the raw time.
+
+## 4. Testing approach
+Date: 2026-10-10
+Status: Decided
+Context: The assignment requires at least 70% coverage on core business logic, and the part most likely to hide bugs is the WCA averaging rules.
+Decision: I put most tests on pure logic and the service layers (averages, records, penalties, validation, scramble rules), using a temporary SQLite file per test, plus a handful of API tests with Flask's test client. The JavaScript timer is only checked by hand.
+Alternatives considered: Testing everything through HTTP only, rejected because failures would be harder to trace to the rule that broke. Mocking the database in service tests, rejected because the SQL constraints are part of the behaviour I want to verify.
+Consequences: Coverage on `solves` and `stats` is XX% (command in README), but the front end has no automated tests, so timer bugs would only be caught manually.
