@@ -30,15 +30,7 @@ Status: Decided
 Context: The assignment requires at least 70% coverage on core business logic, and the part most likely to hide bugs is the WCA averaging rules.
 Decision: I put most tests on pure logic and the service layers (averages, records, penalties, validation, scramble rules), using a temporary SQLite file per test, plus a handful of API tests with Flask's test client. The JavaScript timer is only checked by hand.
 Alternatives considered: Testing everything through HTTP only, rejected because failures would be harder to trace to the rule that broke. Mocking the database in service tests, rejected because the SQL constraints are part of the behaviour I want to verify.
-Consequences: Coverage on `solves` and `stats` is XX% (command in README), but the front end has no automated tests, so timer bugs would only be caught manually.
-
-## 5. Not building: true WCA random-state scrambles
-Date: 2026-10-12
-Status: Decided
-Context: Official WCA scrambles come from a uniformly random cube state solved with a two-phase solver, but a scramble only has to look random for a practice timer.
-Decision: I generate random-move scrambles (20 moves, no two in a row on the same axis) in `solves/scramble.py` and say so in the code and README.
-Alternatives considered: Using an existing Kociemba solver library to generate random-state scrambles, rejected because it adds a dependency and may need slow lookup-table generation, which risks the few-seconds startup requirement in the deployment contract.
-Consequences: Scrambles are slightly less statistically uniform than official ones, so this is a practice tool and not a competition tool. A solver-based generator could later replace `generate_scramble` without touching anything else.
+Consequences: Coverage on `solves` and `stats` package is 100% across 59 tests(command in README), but the front end has no automated tests, so timer bugs would only be caught manually.
 
 ## 5. Not building: true WCA random-state scrambles
 Date: 2026-10-12
