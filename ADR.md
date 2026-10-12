@@ -39,3 +39,11 @@ Context: Official WCA scrambles come from a uniformly random cube state solved w
 Decision: I generate random-move scrambles (20 moves, no two in a row on the same axis) in `solves/scramble.py` and say so in the code and README.
 Alternatives considered: Using an existing Kociemba solver library to generate random-state scrambles, rejected because it adds a dependency and may need slow lookup-table generation, which risks the few-seconds startup requirement in the deployment contract.
 Consequences: Scrambles are slightly less statistically uniform than official ones, so this is a practice tool and not a competition tool. A solver-based generator could later replace `generate_scramble` without touching anything else.
+
+## 5. Not building: true WCA random-state scrambles
+Date: 2026-10-12
+Status: Decided
+Context: Official WCA scrambles come from a uniformly random cube state solved with a two-phase solver, but a scramble only has to look random for a practice timer.
+Decision: I generate random-move scrambles (20 moves, no two in a row on the same axis) in `solves/scramble.py` and say so in the code and README.
+Alternatives considered: Using an existing Kociemba solver library to generate random-state scrambles, rejected because it adds a dependency and may need slow lookup-table generation, which risks the few-seconds startup requirement in the deployment contract.
+Consequences: Scrambles are slightly less statistically uniform than official ones, so this is a practice tool and not a competition tool. A solver-based generator could later replace `generate_scramble` without touching anything else.
