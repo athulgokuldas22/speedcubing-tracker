@@ -28,18 +28,18 @@ The database is created automatically at `$DATA_DIR/cubing.db` on startup (defau
 ## API
 | Method | Path | Purpose |
 |---|---|---|
-| GET | /api/scramble | New random-move scramble |
-| GET, POST | /api/sessions | List or create sessions |
-| GET, POST | /api/sessions/<id>/solves | List or add solves |
-| PATCH | /api/solves/<id> | Set penalty (OK, +2, DNF) |
-| DELETE | /api/solves/<id> | Delete a solve |
-| GET | /api/sessions/<id>/stats | Current averages, personal bests, new PBs |
+| GET | `/api/scramble` | New random-move scramble |
+| GET, POST | `/api/sessions` | List or create sessions |
+| GET, POST | `/api/sessions/<id>/solves` | List or add solves |
+| PATCH | `/api/solves/<id>` | Set penalty (OK, +2, DNF) |
+| DELETE | `/api/solves/<id>` | Delete a solve |
+| GET | `/api/sessions/<id>/stats` | Current averages, personal bests, new PBs |
 
 ## Tests and coverage
     python -m pytest -q
     python -m pytest --cov=solves --cov=stats --cov-report=term-missing
 
-Result: TOTAL 100% coverage across the `solves` and `stats` packages (199 statements 59 tests passing measured on 2026-10-12).
+Result: TOTAL 100% coverage across the `solves` and `stats` packages (199 statements, 59 tests passing, measured on 2026-10-12).
 
 ## Project layout
     app.py          entry point, registers both domains

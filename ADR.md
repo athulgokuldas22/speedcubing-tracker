@@ -22,7 +22,7 @@ Status: Decided
 Context: Stats needs to know which session its personal bests belong to, but the two domains must not be coupled through the database.
 Decision: `solves` owns `sessions` and `solves` (with a real foreign key and `ON DELETE CASCADE`), and `stats` owns `personal_bests`, which stores `session_id` as a plain integer with no foreign key. Times are stored as integer milliseconds, with the penalty in its own column.
 Alternatives considered: A foreign key from `personal_bests.session_id` to `sessions(id)`, rejected because it makes Stats' schema depend on tables owned by Solves. Precomputing and storing an average for every solve, rejected because it goes stale when a penalty changes.
-Consequences: Without a foreign key, the database won't stop an orphaned personal best, so the application code has to clean up. Integer milliseconds avoid float rounding errors, and keeping the penalty separate means changing it never loses the raw time.
+Consequences: Without a foreign key, the database won't stop an orphaned personal best, so the application code has to keep that link valid. Integer milliseconds avoid float rounding errors, and keeping the penalty separate means changing it never loses the raw time.
 
 ## 4. Testing approach
 Date: 2026-10-10
