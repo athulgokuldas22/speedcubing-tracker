@@ -30,7 +30,7 @@ Status: Decided
 Context: The assignment requires at least 70% coverage on core business logic, and the part most likely to hide bugs is the WCA averaging rules.
 Decision: I put most tests on pure logic and the service layers (averages, records, penalties, validation, scramble rules), using a temporary SQLite file per test, plus a handful of API tests with Flask's test client. The JavaScript timer is only checked by hand.
 Alternatives considered: Testing everything through HTTP only, rejected because failures would be harder to trace to the rule that broke. Mocking the database in service tests, rejected because the SQL constraints are part of the behaviour I want to verify.
-Consequences: Coverage on `solves` and `stats` package is 100% across 59 tests(command in README), but the front end has no automated tests, so timer bugs would only be caught manually.
+Consequences: Coverage on `solves` and `stats` packages is 100% across 59 tests(command in README), but the front end has no automated tests, so timer bugs would only be caught manually.
 
 ## 5. Not building: true WCA random-state scrambles
 Date: 2026-10-12
