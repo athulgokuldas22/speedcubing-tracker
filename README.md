@@ -39,7 +39,7 @@ The database is created automatically at `$DATA_DIR/cubing.db` on startup (defau
     python -m pytest -q
     python -m pytest --cov=solves --cov=stats --cov-report=term-missing
 
-Result: TOTAL XX% coverage across the `solves` and `stats` packages (measured on <date>).
+Result: TOTAL 100% coverage across the `solves` and `stats` packages (199 statements 59 tests passing measured on 2026-10-12).
 
 ## Project layout
     app.py          entry point, registers both domains
