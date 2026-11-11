@@ -1,0 +1,68 @@
+name: speedcubing
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64          # no arm64 image: on Apple Silicon, Docker Desktop needs Rosetta enabled
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # One-off job: creates the two databases and logins, then exits.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      SOLVES_PWD: ${SOLVES_PWD}
+      STATS_PWD: ${STATS_PWD}
+    volumes:
+      - ./db/init.sql:/init.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - /opt/mssql-tools18/bin/sqlcmd -C -b -S sqlserver -U sa -P "$$SA_PASSWORD" -i /init.sql -v SOLVES_PWD="$$SOLVES_PWD" STATS_PWD="$$STATS_PWD"
+
+  solves:
+    build: ./services/solves
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: mssql://solves_user:${SOLVES_PWD}@sqlserver:1433/solves
+      CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "8001:8000"
+
+  stats:
+    build: ./services/stats
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: mssql://stats_user:${STATS_PWD}@sqlserver:1433/stats
+      SOLVES_URL: http://solves:8000    # the service name, not localhost
+      CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "8002:8000"
+
+  ui:
+    image: nginx:alpine                # serves the static timer page from ./ui
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+
+volumes:
+  sqldata:
