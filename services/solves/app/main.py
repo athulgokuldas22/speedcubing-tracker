@@ -5,14 +5,14 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from app import db
+from app.migrate import run_migrations
 from app.routes import bp
-from app.schema import SCHEMA
 from app.service import NotFoundError, ValidationError
 
 
 def create_app():
     app = Flask(__name__)
-    db.init_db(SCHEMA)
+    run_migrations()
     app.teardown_appcontext(db.close_db)
     app.register_blueprint(bp)
 

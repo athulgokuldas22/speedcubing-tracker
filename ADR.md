@@ -39,3 +39,10 @@ Context: Official WCA scrambles come from a uniformly random cube state solved w
 Decision: I generate random-move scrambles (20 moves, no two in a row on the same axis) in `solves/scramble.py` and say so in the code and README.
 Alternatives considered: Using an existing Kociemba solver library to generate random-state scrambles, rejected because it adds a dependency and may need slow lookup-table generation, which risks the few-seconds startup requirement in the deployment contract.
 Consequences: Scrambles are slightly less statistically uniform than official ones, so this is a practice tool and not a competition tool. A solver-based generator could later replace `generate_scramble` without touching anything else.
+## 6. The split into two services
+Date: 2026-11-12
+Status: Decided
+Context: Assignment 2 requires one service per feature domain, each in its own container with its own database, and at least one user-visible flow that crosses the seam.
+Decision: The seam from ADR-2 held, so I split along it. `solves` owns sessions, solves and scrambles, and `stats` owns averages and personal bests. The only thing that crosses the seam is the times list: `get_times(conn, session_id)` became `GET /api/sessions/<id>/times` on solves, which stats calls server side through `SOLVES_URL` with a 2 second timeout. If solves does not answer, stats returns a 503 with "solves service unavailable, try again later" instead of hanging or showing a stack trace.
+Alternatives considered: Letting the UI fetch the times from solves and send them to stats (client side), rejected because the brief needs at least one flow to cross the seam server side and the stats would then trust numbers sent by the browser. Moving the stats logic into solves, rejected because it would leave one service doing everything.
+Consequences: Opening the stats of a session now costs an HTTP call instead of a function call, and the stats page fails with a clear error while solves is down, but timing and saving solves keeps working when stats is down. The foreign key from ADR-3 never crossed the seam, so nothing was lost there.

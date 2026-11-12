@@ -10,13 +10,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Only the application code, never the whole folder.
+# Only the application code and its migrations, never the whole folder.
 COPY app/ app/
+COPY migrations/ migrations/
 
 # Run as an unprivileged user.
 RUN useradd --system --no-create-home appuser
 USER appuser
 
 EXPOSE 8000
-# gunicorn listens on 0.0.0.0:$PORT. --preload creates the tables once, before the workers start.
+# gunicorn listens on 0.0.0.0:$PORT. --preload runs the migrations once, before the workers start.
 CMD ["gunicorn", "--preload", "app.main:create_app()"]
