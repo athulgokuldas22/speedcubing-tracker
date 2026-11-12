@@ -32,18 +32,6 @@ def connect_with_retry(attempts=30, delay=2):
             time.sleep(delay)
 
 
-def init_db(statements):
-    """Run each schema statement. They check first, so this is safe on every startup."""
-    conn = connect_with_retry()
-    try:
-        cursor = conn.cursor()
-        for statement in statements:
-            cursor.execute(statement)
-        conn.commit()
-    finally:
-        conn.close()
-
-
 def get_db():
     """One connection per request, stored on flask.g."""
     if "db" not in g:
