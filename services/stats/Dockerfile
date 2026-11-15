@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ app/
 COPY migrations/ migrations/
 
+# The commit this image was built from, shown by /health. CI passes it in.
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
+
 # Run as an unprivileged user.
 RUN useradd --system --no-create-home appuser
 USER appuser

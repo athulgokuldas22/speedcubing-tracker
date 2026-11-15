@@ -1,7 +1,7 @@
 import os
+import time
 
-import pymssql
-from flask import Flask, jsonify
+from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 
 from app import db
@@ -29,15 +29,23 @@ def create_app():
     def not_found(err):
         return jsonify(error=str(err)), 404
 
+    @app.before_request
+    def start_timer():
+        g.start = time.perf_counter()
+
+    @app.after_request
+    def log_request(response):
+        """One line per request on stdout: method, path, status and duration."""
+        ms = (time.perf_counter() - g.get("start", time.perf_counter())) * 1000
+        print(f"{request.method} {request.path} {response.status_code} {ms:.0f}ms", flush=True)
+        return response
+
     @app.get("/health")
     def health():
-        """Reports only this service's own state: can it reach its own database?"""
-        try:
-            conn = db.connect()
-            conn.cursor().execute("SELECT 1")
-            conn.close()
-        except pymssql.Error:
-            return jsonify(status="unavailable"), 503
-        return jsonify(status="ok")
+        """Reports only this service's own state: can it read and write its own database?"""
+        version = os.environ.get("GIT_SHA", "dev")
+        if db.check_read_write():
+            return jsonify(status="ok", db="ok", version=version)
+        return jsonify(status="unavailable", db="error", version=version), 503
 
     return app

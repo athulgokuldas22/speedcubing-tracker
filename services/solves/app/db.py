@@ -20,16 +20,42 @@ def connect():
     )
 
 
-def connect_with_retry(attempts=30, delay=2):
-    """SQL Server needs about 20 s to start, so try again a few times before giving up."""
+def connect_with_retry(attempts=10, first_delay=1, max_delay=15):
+    """Keep trying with exponential backoff: 1, 2, 4, 8, then 15 s between attempts.
+
+    SQL Server in compose needs about 20 s to start, and a paused Azure SQL serverless
+    database can take about a minute to resume (error 40613 until then).
+    """
+    delay = first_delay
     for attempt in range(1, attempts + 1):
         try:
             return connect()
         except pymssql.Error as error:
             if attempt == attempts:
                 raise
-            print(f"database not ready ({attempt}/{attempts}): {error}", flush=True)
+            print(f"database not ready ({attempt}/{attempts}), retrying in {delay}s: {error}", flush=True)
             time.sleep(delay)
+            delay = min(delay * 2, max_delay)
+
+
+def check_read_write():
+    """True if this service can read and write its own database. It changes nothing."""
+    try:
+        conn = connect()
+    except pymssql.Error:
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM schema_migrations")
+        cursor.fetchone()
+        # Needs write permission on the table, matches no rows, and is rolled back anyway.
+        cursor.execute("UPDATE schema_migrations SET applied_at = applied_at WHERE 1 = 0")
+        conn.rollback()
+        return True
+    except pymssql.Error:
+        return False
+    finally:
+        conn.close()
 
 
 def get_db():
