@@ -47,3 +47,4 @@ jobs:
           context: services/${{ matrix.service }}
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ghcr.io/${{ env.OWNER }}/speedcubing-${{ matrix.service }}:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
