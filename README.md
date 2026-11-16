@@ -41,11 +41,16 @@ All paths are on the solves service except `/stats`.
 | GET | `/api/sessions/<id>/times` | Effective times for the stats service |
 | GET | `/api/sessions/<id>/stats` | Current averages, personal bests, new PBs (stats service) |
 
-## Tests
-Run in each service folder:
+## Tests and coverage
+Run in each service folder (`services/solves` or `services/stats`):
 
     pip install -r requirements-dev.txt
-    python -m pytest -q
+    python -m pytest --cov=app --cov-report=term-missing
+
+The database tests need a SQL Server. CI starts a throwaway one for every run and fails if a service's coverage is under 70%. Locally, without one, the database tests are skipped and the rest still run. To include them, start a SQL Server and point `TEST_DATABASE_URL` at its `master` database:
+
+    docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='<a strong password>' mcr.microsoft.com/mssql/server:2022-latest
+    export TEST_DATABASE_URL='mssql://sa:<the same password>@localhost:1433/master'
 
 ## Project layout
     services/solves/   service 1: sessions, solves, scrambles (Dockerfile, app/, tests/)
