@@ -13,8 +13,9 @@ def replace_pbs(conn, session_id, pbs):
     """Replace a session's stored personal bests in one transaction."""
     cursor = conn.cursor()
     cursor.execute("DELETE FROM personal_bests WHERE session_id = %s", (session_id,))
-    cursor.executemany(
-        "INSERT INTO personal_bests (session_id, kind, time_ms) VALUES (%s, %s, %s)",
-        [(session_id, kind, value) for kind, value in pbs.items()],
-    )
+    rows = [(session_id, kind, value) for kind, value in pbs.items()]
+    if rows:
+        cursor.executemany(
+            "INSERT INTO personal_bests (session_id, kind, time_ms) VALUES (%s, %s, %s)", rows
+        )
     conn.commit()

@@ -20,7 +20,17 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
-      - run: python -m pytest
+      # A throwaway SQL Server for the database tests. Its password is random for each
+      # run and masked in the logs, so nothing is stored. CI never touches Azure SQL.
+      - name: Start SQL Server
+        run: |
+          SA_PASSWORD="Ci-$(openssl rand -hex 16)"
+          echo "::add-mask::$SA_PASSWORD"
+          echo "TEST_DATABASE_URL=mssql://sa:$SA_PASSWORD@localhost:1433/master" >> "$GITHUB_ENV"
+          docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$SA_PASSWORD" \
+            mcr.microsoft.com/mssql/server:2022-latest
+      # Fails the job if this service's coverage is under 70%.
+      - run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=70
 
   images:
     needs: test
