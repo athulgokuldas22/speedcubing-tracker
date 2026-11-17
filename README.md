@@ -13,7 +13,9 @@ It runs as two services (`solves` and `stats`), each with its own SQL Server dat
     docker compose up --build     # first start takes about 30 s: SQL Server must be healthy before db-init runs
 
 - UI: http://localhost:8080 · solves: http://localhost:8001/health · stats: http://localhost:8002/health
-- Reset the data: `docker compose down -v`.
+- Each service applies its pending `migrations/*.sql` on startup and records them in `schema_migrations`, so a second start applies nothing.
+- Each service's API is described in its `openapi.yaml`.
+- Reset the local data: `docker compose down -v` (local only).
 
 Press space to start the timer and space again to stop it.
 
@@ -53,8 +55,8 @@ The database tests need a SQL Server. CI starts a throwaway one for every run an
     export TEST_DATABASE_URL='mssql://sa:<the same password>@localhost:1433/master'
 
 ## Project layout
-    services/solves/   service 1: sessions, solves, scrambles (Dockerfile, app/, tests/)
-    services/stats/    service 2: averages and personal bests (Dockerfile, app/, tests/)
+    services/solves/   service 1: sessions, solves, scrambles (Dockerfile, openapi.yaml, app/, migrations/, tests/)
+    services/stats/    service 2: averages and personal bests (Dockerfile, openapi.yaml, app/, migrations/, tests/)
     ui/                static timer page, served by nginx
     db/init.sql        creates one database and one login per service
     docker-compose.yml starts SQL Server, db-init, both services and the UI
