@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: Speedcubing solves service
+  version: "1.0"
+  description: Sessions, timed solves with penalties, and scrambles. Owns the sessions and solves tables.
+servers:
+  - url: http://localhost:8001
+    description: Local docker compose
+paths:
+  /health:
+    get:
+      summary: This service's own health (its database only, never the stats service)
+      responses:
+        "200":
+          description: The service can read and write its own database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The service cannot read or write its own database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/scramble:
+    get:
+      summary: A new random-move 3x3 scramble of 20 moves
+      responses:
+        "200":
+          description: The scramble
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scramble]
+                properties:
+                  scramble: { type: string, example: "R U' F2 D L' B2 U R2 F' D2 L U2 B R' D' F L2 U' B2 R" }
+  /api/sessions:
+    get:
+      summary: All sessions, oldest first
+      responses:
+        "200":
+          description: The sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Session" }
+    post:
+      summary: Create a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, description: Leading and trailing spaces are removed, example: Practice }
+      responses:
+        "201":
+          description: The created session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/sessions/{session_id}/solves:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      summary: The solves of a session, oldest first
+      responses:
+        "200":
+          description: The solves
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Solve" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      summary: Add a solve to a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [time_ms, scramble]
+              properties:
+                time_ms: { type: integer, minimum: 1, example: 12340 }
+                scramble: { type: string, example: "R U R' U'" }
+                penalty: { $ref: "#/components/schemas/Penalty" }
+      responses:
+        "201":
+          description: The created solve
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Solve" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/sessions/{session_id}/times:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      summary: Effective times of a session, oldest first (called by the stats service)
+      description: The only endpoint the stats service calls. A DNF is null; a +2 already includes the 2000 ms.
+      responses:
+        "200":
+          description: The effective times in milliseconds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Times" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/solves/{solve_id}:
+    parameters:
+      - name: solve_id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      summary: Change the penalty of a solve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [penalty]
+              properties:
+                penalty: { $ref: "#/components/schemas/Penalty" }
+      responses:
+        "200":
+          description: The updated solve
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Solve" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      summary: Delete a solve
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  parameters:
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: The session or solve does not exist
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Penalty:
+      type: string
+      enum: ["OK", "+2", "DNF"]
+      default: "OK"
+    Session:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        created_at: { type: string, description: "UTC, as YYYY-MM-DD HH:MM:SS", example: "2026-11-17 14:30:00" }
+    Solve:
+      type: object
+      required: [id, session_id, time_ms, penalty, scramble, created_at, effective_time_ms]
+      properties:
+        id: { type: integer }
+        session_id: { type: integer }
+        time_ms: { type: integer, description: The raw time on the timer }
+        penalty: { $ref: "#/components/schemas/Penalty" }
+        scramble: { type: string }
+        created_at: { type: string, description: "UTC, as YYYY-MM-DD HH:MM:SS" }
+        effective_time_ms: { type: integer, nullable: true, description: "time_ms plus 2000 for +2, null for DNF" }
+    Times:
+      type: object
+      required: [times]
+      properties:
+        times:
+          type: array
+          items: { type: integer, nullable: true }
+          example: [10000, 14000, null]
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: "The git commit SHA the image was built from, or dev when run locally" }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }

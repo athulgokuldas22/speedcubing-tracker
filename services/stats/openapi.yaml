@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: Speedcubing stats service
+  version: "1.0"
+  description: >
+    Averages (ao5, ao12, ao100) and personal bests. Owns the personal_bests table.
+    Gets solve times only from the solves service, through GET /api/sessions/{session_id}/times
+    (documented in services/solves/openapi.yaml), with a 2 second timeout.
+servers:
+  - url: http://localhost:8002
+    description: Local docker compose
+paths:
+  /health:
+    get:
+      summary: This service's own health (its database only, not the solves service)
+      responses:
+        "200":
+          description: The service can read and write its own database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The service cannot read or write its own database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/sessions/{session_id}/stats:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Current averages and personal bests of a session
+      description: >
+        Asks the solves service for the session's times, recomputes and stores the personal
+        bests, and reports which ones improved since the last call.
+      responses:
+        "200":
+          description: The stats
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Stats" }
+        "404":
+          description: The session does not exist in the solves service
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: The solves service did not answer within 2 seconds or answered with an error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: "solves service unavailable, try again later" }
+components:
+  schemas:
+    Averages:
+      type: object
+      description: A missing key means too few solves; null means the average is a DNF.
+      properties:
+        ao5: { type: integer, nullable: true }
+        ao12: { type: integer, nullable: true }
+        ao100: { type: integer, nullable: true }
+    Bests:
+      type: object
+      properties:
+        single: { type: integer }
+        ao5: { type: integer }
+        ao12: { type: integer }
+        ao100: { type: integer }
+    Stats:
+      type: object
+      required: [solve_count, current, personal_bests, new_pbs]
+      properties:
+        solve_count: { type: integer }
+        current: { $ref: "#/components/schemas/Averages" }
+        personal_bests: { $ref: "#/components/schemas/Bests" }
+        new_pbs:
+          type: array
+          items: { type: string, enum: [single, ao5, ao12, ao100] }
+          description: The kinds that improved since the last call, sorted
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: "The git commit SHA the image was built from, or dev when run locally" }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
