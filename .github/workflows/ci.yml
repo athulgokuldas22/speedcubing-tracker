@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
+    branches-ignore: [main]   # on main, cd.yml runs this workflow instead
   pull_request:
+  workflow_call:              # lets cd.yml reuse this workflow before deploying
 
 jobs:
   test:
@@ -69,3 +71,4 @@ jobs:
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ghcr.io/${{ env.OWNER }}/speedcubing-${{ matrix.service }}:${{ github.sha }}
           build-args: GIT_SHA=${{ github.sha }}
+          provenance: false     # a plain image: Container Apps can't pull a tag that points to an attestation index
