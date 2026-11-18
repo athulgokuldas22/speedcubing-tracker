@@ -21,19 +21,39 @@ function formatMs(ms) {
 const SOLVES = window.CONFIG.SOLVES_URL;
 const STATS = window.CONFIG.STATS_URL;
 
-async function api(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (response.status === 204) return null;
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Request failed");
-  return data;
-}
-
 function showMessage(text) {
   $("message").textContent = text;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const STARTING_UP = "The service is starting up after a quiet period (up to about a minute). Trying again...";
+const STILL_STARTING = "The service is still starting up. Please try again in a minute.";
+
+// After a quiet period Azure starts the container and wakes the database, and the first request
+// can fail: the browser sees a failed fetch or a 502/503 that is not our JSON. GET requests are
+// retried every 10 s for about a minute; other requests are not, so a solve is never saved twice.
+async function api(url, options = {}) {
+  const attempts = !options.method || options.method === "GET" ? 7 : 1;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (attempt > 1) {
+      showMessage(STARTING_UP);
+      await sleep(10000);
+    }
+    let response;
+    try {
+      response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+    } catch (err) {
+      continue; // not reachable yet
+    }
+    if (response.status === 204) return null;
+    const data = await response.json().catch(() => null);
+    if (data && response.ok) {
+      if (attempt > 1) showMessage("");
+      return data;
+    }
+    if (data && data.error) throw new Error(data.error); // our own errors: 400, 404, 503
+  }
+  throw new Error(STILL_STARTING);
 }
 
 async function run(action) {
