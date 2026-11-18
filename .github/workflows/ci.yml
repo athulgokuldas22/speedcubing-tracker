@@ -32,8 +32,19 @@ jobs:
       # Fails the job if this service's coverage is under 70%.
       - run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=70
 
+  # Checks that each openapi.yaml is a valid OpenAPI document.
+  specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openapi-spec-validator==0.9.0
+      - run: openapi-spec-validator services/solves/openapi.yaml services/stats/openapi.yaml
+
   images:
-    needs: test
+    needs: [test, specs]
     runs-on: ubuntu-latest
     permissions:
       contents: read
