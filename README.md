@@ -43,6 +43,105 @@ All paths are on the solves service except `/stats`.
 | GET | `/api/sessions/<id>/times` | Effective times for the stats service |
 | GET | `/api/sessions/<id>/stats` | Current averages, personal bests, new PBs (stats service) |
 
+## Deployment on Azure
+Live: https://agokuldasieu2024ui.z28.web.core.windows.net/
+
+`.github/workflows/cd.yml` runs on every push to `main`. It runs CI (`ci.yml` through `workflow_call`), then points both Container Apps at the images tagged with the commit SHA, writes `ui/config.js` with the services' Azure addresses, uploads `ui/` to the storage static website and waits for `/health` on both services to return 200. It signs in as the managed identity `agokuldas-ieu2024-github` with OIDC, so no Azure password is stored anywhere. Nothing is created or changed by hand after the one-time setup below.
+
+| Resource | Name |
+|---|---|
+| Resource group | `rg-agokuldas-ieu2024` (France Central) |
+| UI (storage static website) | `agokuldasieu2024ui` |
+| Pipeline identity | `agokuldas-ieu2024-github` (Contributor on the resource group only) |
+| SQL server | `agokuldas-ieu2024-sql` |
+| Databases (serverless, free offer) | `agokuldas-ieu2024-solves-db`, `agokuldas-ieu2024-stats-db` |
+| Container Apps environment and logs | `agokuldas-ieu2024-env`, `agokuldas-ieu2024-logs` |
+| Container Apps | `agokuldas-ieu2024-solves`, `agokuldas-ieu2024-stats` |
+
+### One-time setup (Azure Cloud Shell, Bash)
+Passwords were generated in the shell and never written down; `<...>` marks where they go.
+
+```bash
+# 1. Subscription, region and names. The region is one from the policy "Allowed resource deployment regions".
+az account set --subscription "<Azure for Students subscription id>"
+az policy assignment list --query "[?contains(displayName, 'region')].parameters" --output json
+PREFIX=agokuldas-ieu2024; RG=rg-$PREFIX; LOCATION=francecentral
+UI_STORAGE=agokuldasieu2024ui; SQL_SERVER=$PREFIX-sql; SQL_HOST=$SQL_SERVER.database.windows.net
+UI_ORIGIN=https://agokuldasieu2024ui.z28.web.core.windows.net
+
+# 2. Providers and resource group
+for p in Microsoft.App Microsoft.OperationalInsights Microsoft.Sql Microsoft.Storage Microsoft.ManagedIdentity; do
+  az provider register --namespace "$p"
+done
+az group create --name "$RG" --location "$LOCATION"
+
+# 3. UI: storage static website
+az storage account create --name "$UI_STORAGE" --resource-group "$RG" --location "$LOCATION" --kind StorageV2 --sku Standard_LRS
+az storage blob service-properties update --account-name "$UI_STORAGE" --auth-mode key --static-website --index-document index.html
+
+# 4. SQL server, two free serverless databases, one contained user per database
+az sql server create --name "$SQL_SERVER" --resource-group "$RG" --location "$LOCATION" \
+  --admin-user sqladmin --admin-password "<random admin password>"
+az sql server firewall-rule create --resource-group "$RG" --server "$SQL_SERVER" \
+  --name AllowAzureServices --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+for svc in solves stats; do
+  az sql db create --resource-group "$RG" --server "$SQL_SERVER" --name "$PREFIX-$svc-db" \
+    --edition GeneralPurpose --compute-model Serverless --family Gen5 --min-capacity 0.5 --capacity 1 \
+    --backup-storage-redundancy Local --use-free-limit true --free-limit-exhaustion-behavior AutoPause
+done
+# The users are created from Cloud Shell, so its IP is allowed only for that and removed straight after.
+az sql server firewall-rule create --resource-group "$RG" --server "$SQL_SERVER" --name cloudshell-setup \
+  --start-ip-address "<cloud shell ip>" --end-ip-address "<cloud shell ip>"
+sqlcmd -S "$SQL_HOST" -d "$PREFIX-solves-db" -U sqladmin -P "<admin password>" -Q \
+  "CREATE USER solves_user WITH PASSWORD = '<solves password>'; ALTER ROLE db_ddladmin ADD MEMBER solves_user; ALTER ROLE db_datareader ADD MEMBER solves_user; ALTER ROLE db_datawriter ADD MEMBER solves_user;"
+sqlcmd -S "$SQL_HOST" -d "$PREFIX-stats-db" -U sqladmin -P "<admin password>" -Q \
+  "CREATE USER stats_user WITH PASSWORD = '<stats password>'; ALTER ROLE db_ddladmin ADD MEMBER stats_user; ALTER ROLE db_datareader ADD MEMBER stats_user; ALTER ROLE db_datawriter ADD MEMBER stats_user;"
+az sql server firewall-rule delete --resource-group "$RG" --server "$SQL_SERVER" --name cloudshell-setup
+
+# 5. Container Apps environment (with a logs workspace named with the prefix) and the two apps
+az monitor log-analytics workspace create --resource-group "$RG" --workspace-name "$PREFIX-logs" --location "$LOCATION"
+az containerapp env create --name "$PREFIX-env" --resource-group "$RG" --location "$LOCATION" \
+  --logs-workspace-id "<workspace customer id>" --logs-workspace-key "<workspace key>"
+az containerapp create --name "$PREFIX-solves" --resource-group "$RG" --environment "$PREFIX-env" \
+  --image mcr.microsoft.com/k8se/quickstart:latest --ingress external --target-port 8000 \
+  --min-replicas 0 --max-replicas 1 --cpu 0.25 --memory 0.5Gi \
+  --secrets "db-url=mssql://solves_user:<solves password>@$SQL_HOST:1433/$PREFIX-solves-db" \
+  --env-vars DATABASE_URL=secretref:db-url CORS_ORIGINS="$UI_ORIGIN"
+az containerapp create --name "$PREFIX-stats" --resource-group "$RG" --environment "$PREFIX-env" \
+  --image mcr.microsoft.com/k8se/quickstart:latest --ingress external --target-port 8000 \
+  --min-replicas 0 --max-replicas 1 --cpu 0.25 --memory 0.5Gi \
+  --secrets "db-url=mssql://stats_user:<stats password>@$SQL_HOST:1433/$PREFIX-stats-db" \
+  --env-vars DATABASE_URL=secretref:db-url CORS_ORIGINS="$UI_ORIGIN" SOLVES_URL="https://<solves app fqdn>"
+
+# 6. Pipeline identity: Contributor on the resource group only, trusted for runs on main of this repository
+az identity create --name "$PREFIX-github" --resource-group "$RG" --location "$LOCATION"
+az role assignment create --assignee-object-id "<identity principal id>" --assignee-principal-type ServicePrincipal \
+  --role Contributor --scope "<resource group id>"
+az identity federated-credential create --name github-main --identity-name "$PREFIX-github" --resource-group "$RG" \
+  --issuer https://token.actions.githubusercontent.com --audiences api://AzureADTokenExchange \
+  --subject "repo:athulgokuldas22/speedcubing-tracker:ref:refs/heads/main"
+az identity federated-credential create --name github-main-ids --identity-name "$PREFIX-github" --resource-group "$RG" \
+  --issuer https://token.actions.githubusercontent.com --audiences api://AzureADTokenExchange \
+  --subject "repo:athulgokuldas22@232575926/speedcubing-tracker@1407628672:ref:refs/heads/main"
+
+# 7. GitHub secrets and variables (values never written in the repository)
+gh secret set AZURE_CLIENT_ID --body "<identity client id>"
+gh secret set AZURE_TENANT_ID --body "<tenant id>"
+gh secret set AZURE_SUBSCRIPTION_ID --body "<subscription id>"
+gh secret set SOLVES_DB_PASSWORD --body "<solves password>"
+gh secret set STATS_DB_PASSWORD --body "<stats password>"
+gh variable set PREFIX --body "$PREFIX"
+gh variable set RESOURCE_GROUP --body "$RG"
+gh variable set UI_STORAGE --body "$UI_STORAGE"
+
+# 8. Read access for the professors
+for prof in amartini@faculty.ie.edu bserra@faculty.ie.edu; do
+  az role assignment create --assignee "$prof" --role Reader --scope "<resource group id>"
+done
+```
+
+After the first push to `main`, the packages `ghcr.io/athulgokuldas22/speedcubing-solves` and `speedcubing-stats` were made public, so Container Apps can pull them without credentials.
+
 ## Tests and coverage
 Run in each service folder (`services/solves` or `services/stats`):
 
