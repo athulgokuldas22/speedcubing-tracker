@@ -202,24 +202,45 @@ async function stopTimer() {
 
 const TYPING = ["INPUT", "SELECT", "TEXTAREA", "BUTTON"];
 
+// Like a Stackmat: hold space and the time turns yellow; after HOLD_MS it turns green,
+// and releasing it then starts the timer. Releasing too early does nothing.
+const HOLD_MS = 550;
+let ready = false;
+let holdTimer = null;
+
+function resetHold() {
+  clearTimeout(holdTimer);
+  $("timer").classList.remove("holding", "ready");
+  armed = false;
+  ready = false;
+}
+
 document.addEventListener("keydown", (e) => {
   if (e.code !== "Space" || TYPING.includes(e.target.tagName)) return;
   e.preventDefault();
   if (state === "running") {
-    armed = false;
+    resetHold();
     stopTimer();
   } else if (state === "idle" && !e.repeat) {
     armed = true;
+    $("timer").classList.add("holding");
+    holdTimer = setTimeout(() => {
+      ready = true;
+      $("timer").textContent = formatMs(0);
+      $("timer").classList.replace("holding", "ready");
+    }, HOLD_MS);
   }
 });
 
 document.addEventListener("keyup", (e) => {
   if (e.code !== "Space") return;
-  if (armed && state === "idle" && sessionId !== null) {
-    startTimer();
-  }
-  armed = false;
+  const start = armed && ready && state === "idle" && sessionId !== null;
+  resetHold();
+  if (start) startTimer();
 });
+
+// If the window loses focus while space is held, the keyup never arrives.
+window.addEventListener("blur", resetHold);
 
 $("new-session").addEventListener("click", (e) => {
   e.currentTarget.blur();

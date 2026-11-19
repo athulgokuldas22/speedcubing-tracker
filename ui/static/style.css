@@ -6,6 +6,8 @@ h2 { font-size: 1rem; margin: 2rem 0 .5rem; }
 .scramble { font-family: ui-monospace, monospace; font-size: 1.2rem; text-align: center; margin-top: 2rem; }
 .timer { font-size: 5rem; font-variant-numeric: tabular-nums; text-align: center; margin: 1rem 0 0; }
 .timer.running { color: #0a7d33; }
+.timer.holding { color: #ca8a04; }
+.timer.ready { color: #16a34a; }
 .hint { text-align: center; color: #666; margin: 0; }
 .message { text-align: center; min-height: 1.5rem; color: #b45309; font-weight: 600; }
 table { width: 100%; border-collapse: collapse; }
