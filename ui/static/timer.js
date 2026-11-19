@@ -2,7 +2,7 @@ const $ = (id) => document.getElementById(id);
 
 let sessionId = null;
 let scramble = "";
-let state = "idle"; // idle | running | saving
+let state = "idle"; // idle | inspecting | running | saving
 let armed = false; // true after a space keydown while idle
 let startTime = 0;
 let rafId = null;
@@ -177,6 +177,8 @@ function tick() {
 }
 
 function startTimer() {
+  penalty = inspectionPenalty();
+  stopInspection();
   state = "running";
   startTime = performance.now();
   $("timer").classList.add("running");
@@ -192,7 +194,7 @@ async function stopTimer() {
   await run(async () => {
     await api(`${SOLVES}/api/sessions/${sessionId}/solves`, {
       method: "POST",
-      body: JSON.stringify({ time_ms: elapsed, scramble }),
+      body: JSON.stringify({ time_ms: elapsed, scramble, penalty }),
     });
     await refresh();
     await newScramble();
@@ -202,24 +204,101 @@ async function stopTimer() {
 
 const TYPING = ["INPUT", "SELECT", "TEXTAREA", "BUTTON"];
 
+// WCA inspection: press space to start 15 s of inspection, counted up from 0, with calls at
+// 8 and 12 s. Starting after 15 s adds +2, after 17 s the solve is a DNF.
+let inspectionStart = 0;
+let inspectionTimer = null;
+let penalty = "OK";
+
+function inspectionSeconds() {
+  return (performance.now() - inspectionStart) / 1000;
+}
+
+function inspectionPenalty() {
+  const seconds = inspectionSeconds();
+  if (seconds > 17) return "DNF";
+  if (seconds > 15) return "+2";
+  return "OK";
+}
+
+function showInspection() {
+  const seconds = inspectionSeconds();
+  if (!$("timer").classList.contains("ready")) $("timer").textContent = String(Math.floor(seconds));
+  if (seconds > 17) showMessage("17 seconds: this solve will be a DNF");
+  else if (seconds > 15) showMessage("15 seconds: this solve will get +2");
+  else if (seconds >= 12) showMessage("12 seconds!");
+  else if (seconds >= 8) showMessage("8 seconds!");
+}
+
+function startInspection() {
+  state = "inspecting";
+  inspectionStart = performance.now();
+  showMessage("");
+  showInspection();
+  inspectionTimer = setInterval(showInspection, 100);
+}
+
+function stopInspection() {
+  clearInterval(inspectionTimer);
+  showMessage("");
+}
+
+// Like a Stackmat: during inspection, hold space and the time turns yellow; after HOLD_MS it
+// turns green, and releasing it then starts the timer. Releasing too early does nothing.
+const HOLD_MS = 550;
+let ready = false;
+let holdTimer = null;
+
+function resetHold() {
+  clearTimeout(holdTimer);
+  $("timer").classList.remove("holding", "ready");
+  armed = false;
+  ready = false;
+}
+
 document.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" && state === "inspecting") {
+    resetHold();
+    stopInspection();
+    state = "idle";
+    $("timer").textContent = formatMs(0);
+    return;
+  }
   if (e.code !== "Space" || TYPING.includes(e.target.tagName)) return;
   e.preventDefault();
+  if (e.repeat) return;
   if (state === "running") {
-    armed = false;
+    resetHold();
     stopTimer();
-  } else if (state === "idle" && !e.repeat) {
+  } else if (state === "idle") {
+    armed = true; // inspection starts when space is released
+  } else if (state === "inspecting") {
     armed = true;
+    $("timer").classList.add("holding");
+    holdTimer = setTimeout(() => {
+      ready = true;
+      $("timer").textContent = formatMs(0);
+      $("timer").classList.replace("holding", "ready");
+    }, HOLD_MS);
   }
 });
 
 document.addEventListener("keyup", (e) => {
   if (e.code !== "Space") return;
-  if (armed && state === "idle" && sessionId !== null) {
+  const wasArmed = armed;
+  const wasReady = ready;
+  resetHold();
+  if (state === "idle" && wasArmed && sessionId !== null) {
+    startInspection();
+  } else if (state === "inspecting" && wasReady) {
     startTimer();
+  } else if (state === "inspecting") {
+    showInspection(); // released too early: back to the inspection count
   }
-  armed = false;
 });
+
+// If the window loses focus while space is held, the keyup never arrives.
+window.addEventListener("blur", resetHold);
 
 $("new-session").addEventListener("click", (e) => {
   e.currentTarget.blur();
