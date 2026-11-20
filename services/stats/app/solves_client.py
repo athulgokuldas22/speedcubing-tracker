@@ -14,7 +14,7 @@ class SolvesUnavailable(Exception):
 
 def get_times(session_id):
     """Effective times in ms, oldest first. A DNF is None."""
-    url = f"{os.environ['SOLVES_URL']}/api/sessions/{session_id}/times"
+    url = f"{os.environ.get('SOLVES_URL', 'http://solves:8000')}/api/sessions/{session_id}/times"
     try:
         response = requests.get(url, timeout=2)
     except requests.RequestException:
