@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=./system.schema.json
+student: agokuldas.ieu2024
+prefix: agokuldas-ieu2024
+public_url: https://agokuldasieu2024ui.z28.web.core.windows.net
+ui:
+  path: ui
+  storage_account: agokuldasieu2024ui
+  calls: [solves, stats]
+azure:
+  resource_group: rg-agokuldas-ieu2024
+  container_apps_environment: agokuldas-ieu2024-env
+  sql_server: agokuldas-ieu2024-sql
+  registry: ghcr.io/athulgokuldas22
+services:
+  solves:
+    description: Sessions, timed solves with +2/DNF penalties, and random-move 3x3 scrambles.
+    path: services/solves
+    openapi: services/solves/openapi.yaml
+    port_default: 8000
+    health: /health
+    migrations: services/solves/migrations
+    env:
+      PORT: { default: 8000, description: Port gunicorn listens on }
+      DATABASE_URL: { secret: true, description: "Connection string of the solves database, mssql://user:password@host:port/database" }
+      CORS_ORIGINS: { default: "", description: Comma-separated origins allowed to call the service from a browser (the UI) }
+      GIT_SHA: { default: dev, description: "Commit the image was built from, reported by /health; set by CI at build time" }
+    calls: []
+    azure:
+      container_app: agokuldas-ieu2024-solves
+      sql_database: agokuldas-ieu2024-solves-db
+  stats:
+    description: Averages (ao5, ao12, ao100) and personal bests, computed from the times the solves service returns.
+    path: services/stats
+    openapi: services/stats/openapi.yaml
+    port_default: 8000
+    health: /health
+    migrations: services/stats/migrations
+    env:
+      PORT: { default: 8000, description: Port gunicorn listens on }
+      DATABASE_URL: { secret: true, description: "Connection string of the stats database, mssql://user:password@host:port/database" }
+      CORS_ORIGINS: { default: "", description: Comma-separated origins allowed to call the service from a browser (the UI) }
+      GIT_SHA: { default: dev, description: "Commit the image was built from, reported by /health; set by CI at build time" }
+      SOLVES_URL: { default: "http://solves:8000", description: Base URL of the solves service }
+    calls:
+      - service: solves
+        url_env: SOLVES_URL
+        endpoints: ["GET /api/sessions/{session_id}/times"]
+        timeout_s: 2
+        on_failure: The stats request answers 503 with "solves service unavailable, try again later"; solves' own features keep working.
+    azure:
+      container_app: agokuldas-ieu2024-stats
+      sql_database: agokuldas-ieu2024-stats-db
