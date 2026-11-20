@@ -166,10 +166,11 @@ components:
       default: "OK"
     Session:
       type: object
-      required: [id, name, created_at]
+      required: [id, name, puzzle, created_at]
       properties:
         id: { type: integer }
         name: { type: string }
+        puzzle: { type: string, description: "Added by migration 002; every session so far is 3x3", example: "3x3" }
         created_at: { type: string, description: "UTC, as YYYY-MM-DD HH:MM:SS", example: "2026-11-17 14:30:00" }
     Solve:
       type: object
