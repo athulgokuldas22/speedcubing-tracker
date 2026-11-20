@@ -12,7 +12,7 @@ def create_session(conn, name):
 def get_session(conn, session_id):
     cursor = conn.cursor(as_dict=True)
     cursor.execute(
-        "SELECT id, name, CONVERT(VARCHAR(19), created_at, 120) AS created_at "
+        "SELECT id, name, puzzle, CONVERT(VARCHAR(19), created_at, 120) AS created_at "
         "FROM sessions WHERE id = %s",
         (session_id,),
     )
@@ -22,7 +22,7 @@ def get_session(conn, session_id):
 def list_sessions(conn):
     cursor = conn.cursor(as_dict=True)
     cursor.execute(
-        "SELECT id, name, CONVERT(VARCHAR(19), created_at, 120) AS created_at "
+        "SELECT id, name, puzzle, CONVERT(VARCHAR(19), created_at, 120) AS created_at "
         "FROM sessions ORDER BY id"
     )
     return cursor.fetchall()

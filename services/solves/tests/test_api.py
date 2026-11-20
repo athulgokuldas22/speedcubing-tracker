@@ -14,6 +14,7 @@ def test_scramble_endpoint_returns_20_moves(api):
 
 def test_create_and_list_sessions(api):
     session = make_session(api)
+    assert session["puzzle"] == "3x3"  # the default from migration 002
     listed = api.get("/api/sessions").get_json()
     assert [s["id"] for s in listed] == [session["id"]]
 
