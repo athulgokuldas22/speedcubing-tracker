@@ -159,4 +159,6 @@ The database tests need a SQL Server. CI starts a throwaway one for every run an
     ui/                static timer page, served by nginx
     db/init.sql        creates one database and one login per service
     docker-compose.yml starts SQL Server, db-init, both services and the UI
+    system.yaml        every service, its settings, its call across the seam and its Azure resources
+    system.schema.json the format system.yaml must follow, provided by the professor (CI validates against it on every push)
     ADR.md  AI_USAGE.md  docs/
