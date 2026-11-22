@@ -24,4 +24,3 @@ def get_times(session_id):
     if response.status_code != 200:
         raise SolvesUnavailable("solves service unavailable, try again later")
     return response.json()["times"]
-import os
