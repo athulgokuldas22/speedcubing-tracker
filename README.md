@@ -19,6 +19,30 @@ It runs as two services (`solves` and `stats`), each with its own SQL Server dat
 
 Press space to start the timer and space again to stop it.
 
+## Running a single service
+
+Each service runs on its own with only its database. Compose starts SQL Server and `db-init` first:
+
+```bash
+docker compose up --build sqlserver db-init solves   # solves on http://localhost:8001
+docker compose up --build sqlserver db-init stats    # stats on http://localhost:8002
+```
+
+Stats alone still starts and its `/health` is 200, but `GET /api/sessions/<id>/stats` returns 503 "solves service unavailable" until solves is running (ADR-6).
+
+Without Docker, against a SQL Server you already have:
+
+```bash
+cd services/solves                 # or services/stats
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export DATABASE_URL='mssql://<user>:<password>@<host>:1433/<database>'
+export SOLVES_URL='http://localhost:8001'   # stats only
+PORT=8001 gunicorn --preload 'app.main:create_app()'   # 8002 for stats
+```
+
+Migrations run on startup, so the database only needs to exist.
+
 ## Configuration (environment variables)
 | Variable | Service | Meaning |
 |---|---|---|
